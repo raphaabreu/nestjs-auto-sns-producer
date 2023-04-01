@@ -1,11 +1,11 @@
 import * as AWS from 'aws-sdk';
-import { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { OnModuleInit, OnModuleDestroy, Provider } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { MessageBatcher } from '@raphaabreu/message-batcher';
 import { PromiseCollector } from '@raphaabreu/promise-collector';
 import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logger';
 
-export type AutoSNSProducerServiceOptions<T = unknown> = {
+export type AutoSNSProducerOptions<T = unknown> = {
   topicArn: string;
   eventName: string;
   batchSize?: number;
@@ -15,7 +15,7 @@ export type AutoSNSProducerServiceOptions<T = unknown> = {
   verboseBeginning?: boolean;
 };
 
-const defaultOptions: Partial<AutoSNSProducerServiceOptions> = {
+const defaultOptions: Partial<AutoSNSProducerOptions> = {
   batchSize: 10,
   maxBatchIntervalMs: 10000,
   serializer: JSON.stringify,
@@ -24,22 +24,30 @@ const defaultOptions: Partial<AutoSNSProducerServiceOptions> = {
 
 const MAX_VERBOSE_LOG_COUNT = 10;
 
-export class AutoSNSProducerService<T> implements OnModuleInit, OnModuleDestroy {
+export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
   private readonly logger: StructuredLogger;
   private readonly batcher: MessageBatcher<T>;
   private readonly promiseCollector = new PromiseCollector();
-  private readonly options: AutoSNSProducerServiceOptions<T>;
+  private readonly options: AutoSNSProducerOptions<T>;
 
   private verboseLogCount = 0;
 
-  constructor(
-    private readonly awsSns: AWS.SNS,
-    eventEmitter: EventEmitter2,
-    options: AutoSNSProducerServiceOptions<T>,
-  ) {
+  public static register<T>(options: AutoSNSProducerOptions<T>): Provider {
+    return {
+      provide: AutoSNSProducer.getServiceName(options.eventName),
+      useFactory: (awsSns: AWS.SNS, eventEmitter: EventEmitter2) => new AutoSNSProducer(awsSns, eventEmitter, options),
+      inject: [AWS.SNS, EventEmitter2],
+    };
+  }
+
+  public static getServiceName(eventName: string): string {
+    return `${AutoSNSProducer.name}:${eventName}`;
+  }
+
+  constructor(private readonly awsSns: AWS.SNS, eventEmitter: EventEmitter2, options: AutoSNSProducerOptions<T>) {
     this.options = { ...defaultOptions, ...options };
 
-    this.logger = new StructuredLogger(`AutoSNSProducer:${this.options.eventName}`);
+    this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(this.options.eventName));
 
     this.batcher = new MessageBatcher(
       this.options.batchSize,

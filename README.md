@@ -1,6 +1,6 @@
-# AutoSNSProducerService
+# AutoSNSProducer
 
-AutoSNSProducerService is a NestJS module that automatically batches and publishes messages to an AWS SNS topic. It is designed to be flexible and easy to use, with options for custom serialization and message preparation.
+AutoSNSProducer is a NestJS utility that automatically batches and publishes messages to an AWS SNS topic. It is designed to be flexible and easy to use, with options for custom serialization and message preparation.
 
 ## Features
 
@@ -19,20 +19,20 @@ npm i @raphaabreu/nestjs-auto-sns-producer
 
 ## Usage
 
-To use this utility, import the `AutoSNSProducerModule` it into your NestJS module and provide the necessary options.
-You can import it as many times as you have SNS topics to publish to.
+To use, import the `AutoSNSProducer` it into your NestJS module and provide the necessary options.
+You can register it as many times as you have SNS topics to publish to.
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { AutoSNSProducerModule } from '@raphaabreu/nestjs-auto-sns-producer';
+import { AutoSNSProducer } from '@raphaabreu/nestjs-auto-sns-producer';
 
 @Module({
-  imports: [
-    AutoSNSProducerModule.register({
+  providers: [
+    AutoSNSProducer.register({
       eventName: 'event-1',
       topicArn: 'arn:aws:sns:us-east-1:123456789012:event-1',
     }),
-    AutoSNSProducerModule.register({
+    AutoSNSProducer.register({
       eventName: 'event-2',
       topicArn: 'arn:aws:sns:us-east-1:123456789012:event-2',
     }),
@@ -47,16 +47,16 @@ Now, you can emit events with the specified eventName using the `EventEmitter2` 
 eventEmitter.emit('event-1', { foo: 'bar' });
 ```
 
-The `AutoSNSProducerService` will automatically batch and publish messages to the specified SNS topic.
+The `AutoSNSProducer` will automatically batch and publish messages to the specified SNS topic.
 
 ### Custom Serialization
 
 To use a custom serializer, provide a `serializer` function in the options:
 
 ```typescript
-return new AutoSNSProducerService(awsSns, eventEmitter, {
+AutoSNSProducer.register({
   eventName: 'event-1',
-  topicArn: 'arn:aws:sns:us-east-1:123456789012:event-1,
+  topicArn: 'arn:aws:sns:us-east-1:123456789012:event-1',
   serializer: (event) => `Custom: ${JSON.stringify(event)}`,
 });
 ```
@@ -66,9 +66,9 @@ return new AutoSNSProducerService(awsSns, eventEmitter, {
 To customize how messages are prepared for publishing, provide a `prepareEntry` function in the options:
 
 ```typescript
-return new AutoSNSProducerService(awsSns, eventEmitter, {
+AutoSNSProducer.register({
   eventName: 'event-1',
-  topicArn: 'arn:aws:sns:us-east-1:123456789012:event-1,
+  topicArn: 'arn:aws:sns:us-east-1:123456789012:event-1',
   prepareEntry: (event, index) => ({
     Id: `custom-${index}`,
     Message: JSON.stringify(event),

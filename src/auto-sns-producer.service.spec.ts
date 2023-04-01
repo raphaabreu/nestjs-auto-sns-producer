@@ -1,11 +1,11 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as AWS from 'aws-sdk';
-import { AutoSNSProducerService, AutoSNSProducerServiceOptions } from './auto-sns-producer.service';
+import { AutoSNSProducer, AutoSNSProducerOptions } from './auto-sns-producer.service';
 
 describe('AutoSNSProducerService', () => {
   let eventEmitter: EventEmitter2;
   let awsSns: jest.Mocked<AWS.SNS>;
-  let sut: AutoSNSProducerService<any>;
+  let sut: AutoSNSProducer<any>;
 
   beforeEach(() => {
     eventEmitter = new EventEmitter2();
@@ -16,8 +16,8 @@ describe('AutoSNSProducerService', () => {
     } as unknown as jest.Mocked<AWS.SNS>;
   });
 
-  function createService(options: AutoSNSProducerServiceOptions) {
-    sut = new AutoSNSProducerService(awsSns, eventEmitter, options);
+  function createService(options: AutoSNSProducerOptions) {
+    sut = new AutoSNSProducer(awsSns, eventEmitter, options);
   }
 
   it('should add events to batcher and publish messages', async () => {

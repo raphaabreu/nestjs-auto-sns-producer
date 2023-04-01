@@ -87,7 +87,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
     try {
       const results = await this.awsSns.publishBatch(params).promise();
 
-      const verboseLog = this.options.verboseBeginning && this.verboseLogCount < MAX_VERBOSE_LOG_COUNT;
+      const verboseLog = this.verboseLoggingEnabled();
 
       this.logger[results.Failed.length > 0 ? 'warn' : verboseLog ? 'log' : 'debug'](
         'Published ${batchMessages} messages to SNS topic ${topicArn}: ${successCount} succeeded, ${failCount} failed.',
@@ -97,12 +97,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
         results.Failed.length,
       );
 
-      if (verboseLog) {
-        this.verboseLogCount++;
-        if (this.verboseLogCount === MAX_VERBOSE_LOG_COUNT) {
-          this.logger.log('Success messages will be logged as debug from now on');
-        }
-      }
+      this.countVerboseLogging();
     } catch (error) {
       this.logger.error('Failed to publish messages to SNS topic ${topicArn}', error, this.options.topicArn);
     }
@@ -126,11 +121,23 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
 
   @OnEvent('flush')
   async flush() {
-    const verboseLog = this.options.verboseBeginning && this.verboseLogCount < MAX_VERBOSE_LOG_COUNT;
-
     this.batcher.flush();
     await this.promiseCollector.pending();
 
-    this.logger[verboseLog ? 'log' : 'debug']('Flushed');
+    this.logger[this.verboseLoggingEnabled() ? 'log' : 'debug']('Flushed');
+    this.countVerboseLogging();
+  }
+
+  private verboseLoggingEnabled() {
+    return this.options.verboseBeginning && this.verboseLogCount < MAX_VERBOSE_LOG_COUNT;
+  }
+
+  private countVerboseLogging() {
+    if (this.verboseLoggingEnabled()) {
+      this.verboseLogCount++;
+      if (this.verboseLogCount === MAX_VERBOSE_LOG_COUNT) {
+        this.logger.log('Success messages will be logged as debug from now on');
+      }
+    }
   }
 }

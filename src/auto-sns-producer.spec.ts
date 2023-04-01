@@ -1,6 +1,6 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as AWS from 'aws-sdk';
-import { AutoSNSProducer, AutoSNSProducerOptions } from './auto-sns-producer.service';
+import { AutoSNSProducer, AutoSNSProducerOptions } from './auto-sns-producer';
 
 describe('AutoSNSProducerService', () => {
   let eventEmitter: EventEmitter2;

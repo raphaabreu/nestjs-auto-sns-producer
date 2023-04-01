@@ -88,7 +88,9 @@ describe('AutoSNSProducerService', () => {
       topicArn: 'arn:aws:sns:us-east-1:123456789012:MyTopic',
       eventName: 'MyEvent',
     });
-    jest.spyOn(sut['batcher'], 'start').mockImplementation(() => {});
+    jest.spyOn(sut['batcher'], 'start').mockImplementation(() => {
+      // Do nothing
+    });
 
     // Act
     sut.onModuleInit();

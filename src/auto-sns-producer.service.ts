@@ -80,8 +80,8 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
 
     this.logger.debug(
       'Publishing ${messageCount} messages to SNS topic ${topicArn}...',
-      this.options.topicArn,
       events.length,
+      this.options.topicArn,
     );
 
     try {

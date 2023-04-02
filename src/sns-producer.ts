@@ -56,12 +56,6 @@ export class SNSProducer<T> {
       PublishBatchRequestEntries: this.prepareBatch(messages),
     };
 
-    this.logger.debug(
-      'Publishing ${messageCount} messages to SNS topic ${topicArn}...',
-      messages.length,
-      this.options.topicArn,
-    );
-
     try {
       const results = await this.awsSns.publishBatch(params).promise();
 

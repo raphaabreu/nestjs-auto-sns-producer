@@ -149,7 +149,8 @@ describe('AutoSNSProducerService', () => {
         }),
     } as unknown as any);
 
-    jest.spyOn(sut['logger'], 'warn');
+    const warnSpy = jest.fn();
+    jest.spyOn(sut['logger'], 'createScope').mockImplementation(() => ({ warn: warnSpy } as any));
 
     eventEmitter.emit('MyEvent', { foo: 'bar' });
     eventEmitter.emit('MyEvent', { foo: 'baz' });
@@ -160,6 +161,6 @@ describe('AutoSNSProducerService', () => {
     await sut.flush();
 
     // Assert
-    expect(sut['logger'].warn).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
   });
 });

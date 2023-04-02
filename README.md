@@ -1,53 +1,99 @@
-# AutoSNSProducer
+# AutoSNSProducer and SNSProducer
 
-AutoSNSProducer is a NestJS utility that automatically batches and publishes messages to an AWS SNS topic. It is designed to be flexible and easy to use, with options for custom serialization and message preparation.
+`AutoSNSProducer` and `SNSProducer` are two a NestJS utility classes that simplifies the process of publishing messages to AWS SNS.
 
-## Features
+- `SNSProducer`: Responsible for publishing messages to Amazon SNS in batches. This class allows easier publishing and testing by delegating configuration to the dependency injection registration.
 
-- Batching of messages to reduce the number of requests to AWS SNS
-- Customizable serialization and message preparation
-- Lifecycle management with NestJS module lifecycle hooks
-- Logging integration with NestJS logger
+- `AutoSNSProducer`: Built on top of `SNSProducer`, this class will register an `EventEmitter2` listener to the event you indicate, will batch messages automatically waiting up to the indicated maximum interval and will handle any errors silently.
 
 ## Installation
 
-First, install the package using your package manager:
+Install the package using your package manager:
 
 ```bash
 npm i @raphaabreu/nestjs-auto-sns-producer
 ```
 
-## Usage
+## Using `AutoSNSProducer`
 
-To use, import the `AutoSNSProducer` it into your NestJS module and provide the necessary options.
-You can register it as many times as you have SNS topics to publish to.
+Register the `AutoSNSProducer` with your NestJS module:
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { AutoSNSProducer } from '@raphaabreu/nestjs-auto-sns-producer';
+import { AutoSNSProducer } from '@raphaabreu/nestjs-auto-sns-producer-producer';
 
 @Module({
   providers: [
     AutoSNSProducer.register({
-      eventName: 'event-1',
-      topicArn: 'arn:aws:sns:us-east-1:123456789012:event-1',
-    }),
-    AutoSNSProducer.register({
-      eventName: 'event-2',
-      topicArn: 'arn:aws:sns:us-east-1:123456789012:event-2',
+      eventName: 'your-event-name',
+      topicArn: 'your-topic-arn',
+      maxBatchIntervalMs: 10000, // Optional, default is 10000ms
     }),
   ],
 })
-export class AppModule {}
+export class YourModule {}
 ```
 
-Now, you can emit events with the specified eventName using the `EventEmitter2` instance:
+Now you can produce events and they will be batched then published to SNS automatically:
 
 ```typescript
-eventEmitter.emit('event-1', { foo: 'bar' });
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+@Injectable()
+export class YourService {
+  constructor(private readonly eventEmitter: EventEmitter2) {}
+
+  async doWork() {
+    // do something
+
+    this.eventEmitter.emit('your-event-name', yourEventData); // Events will be batched to reduce the number of calls to AWS
+  }
+}
 ```
 
-The `AutoSNSProducer` will automatically batch and publish messages to the specified SNS topic.
+## Using `SNSProducer`
+
+Register the `SNSProducer` with your NestJS module:
+
+```typescript
+import { SNSProducer } from '@raphaabreu/nestjs-auto-sns-producer';
+
+@Module({
+  providers: [
+    SNSProducer.register({
+      name: 'your-producer-name',
+      topicArn: 'your-topic-arn',
+      serializer: JSON.stringify, // Optional, default is JSON.stringify
+    }),
+  ],
+})
+export class YourModule {}
+```
+
+Inject the `SNSProducer` into your service and use the `publishBatch(messages: T | T[])` method to publish messages:
+
+```typescript
+import { SNSProducer } from '@raphaabreu/nestjs-auto-sns-producer';
+
+@Injectable()
+export class YourService {
+  constructor(
+    @Inject(SNSProducer.getServiceName('your-producer-name'))
+    private readonly snsProducer: SNSProducer<YourMessageType>,
+  ) {}
+
+  async doWork() {
+    const messages: YourMessageType[] = [];
+
+    // ... fill the messages array
+
+    // Messages will be broken down into batches and will be published immediately.
+    // The promise returned will complete once all messages are published and will fail if there are any errors.
+    await this.snsProducer.publishBatch(messages);
+  }
+}
+```
+
+## Advanced use
 
 ### Custom Serialization
 

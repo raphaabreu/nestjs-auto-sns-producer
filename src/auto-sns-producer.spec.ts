@@ -20,6 +20,24 @@ describe('AutoSNSProducerService', () => {
     sut = new AutoSNSProducer(awsSns, eventEmitter, options);
   }
 
+  it('should return service name from event', () => {
+    // Arrange
+    // Act
+    const name = AutoSNSProducer.getServiceName('MyEvent');
+
+    // Assert
+    expect(name).toBe('AutoSNSProducer:MyEvent');
+  });
+
+  it('should return service name from event and custom name', () => {
+    // Arrange
+    // Act
+    const name = AutoSNSProducer.getServiceName('MyEvent', 'custom');
+
+    // Assert
+    expect(name).toBe('AutoSNSProducer:MyEvent:custom');
+  });
+
   it('should add events to batcher and publish messages', async () => {
     // Arrange
     createService({

@@ -7,6 +7,7 @@ import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logge
 import { SNSProducer, SNSProducerOptions } from './sns-producer';
 
 export type AutoSNSProducerOptions<T = unknown> = {
+  name?: string;
   eventName: string;
   maxBatchIntervalMs?: number;
 } & Omit<SNSProducerOptions<T>, 'name'>;
@@ -24,20 +25,20 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
 
   public static register<T>(options: AutoSNSProducerOptions<T>): Provider {
     return {
-      provide: AutoSNSProducer.getServiceName(options.eventName),
+      provide: AutoSNSProducer.getServiceName(options.eventName, options.name),
       useFactory: (awsSns: AWS.SNS, eventEmitter: EventEmitter2) => new AutoSNSProducer(awsSns, eventEmitter, options),
       inject: [AWS.SNS, EventEmitter2],
     };
   }
 
-  public static getServiceName(eventName: string): string {
-    return `${AutoSNSProducer.name}:${eventName}`;
+  public static getServiceName(eventName: string, name?: string): string {
+    return `${AutoSNSProducer.name}:${eventName}${name ? ':' + name : ''}`;
   }
 
   constructor(awsSns: AWS.SNS, eventEmitter: EventEmitter2, options: AutoSNSProducerOptions<T>) {
     this.options = { ...defaultOptions, ...options };
 
-    this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(options.eventName));
+    this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(options.eventName, options.name));
 
     this.batcher = new MessageBatcher(
       SNSProducer.BATCH_SIZE,

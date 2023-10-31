@@ -32,7 +32,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
   }
 
   public static getServiceName(eventName: string, name?: string): string {
-    return `${AutoSNSProducer.name}:${eventName}${name ? ':' + name : ''}`;
+    return `${AutoSNSProducer.name}:${name ? name : eventName}`;
   }
 
   constructor(awsSns: AWS.SNS, eventEmitter: EventEmitter2, options: AutoSNSProducerOptions<T>) {
@@ -45,7 +45,10 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
       this.promiseCollector.wrap((b) => this.publishIgnoringErrors(b)),
     );
 
-    this.snsProducer = new SNSProducer(awsSns, { ...options, name: options.eventName });
+    this.snsProducer = new SNSProducer(awsSns, {
+      ...options,
+      name: options.name ? options.name : options.eventName,
+    });
 
     eventEmitter.on(this.options.eventName, (e) => this.add(e));
   }

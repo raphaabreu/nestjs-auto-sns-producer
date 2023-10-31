@@ -35,7 +35,7 @@ describe('AutoSNSProducerService', () => {
     const name = AutoSNSProducer.getServiceName('MyEvent', 'custom');
 
     // Assert
-    expect(name).toBe('AutoSNSProducer:MyEvent:custom');
+    expect(name).toBe('AutoSNSProducer:custom');
   });
 
   it('should add events to batcher and publish messages', async () => {

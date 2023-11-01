@@ -29,15 +29,6 @@ describe('AutoSNSProducerService', () => {
     expect(name).toBe('AutoSNSProducer:MyEvent');
   });
 
-  it('should return service name from event and custom name', () => {
-    // Arrange
-    // Act
-    const name = AutoSNSProducer.getServiceName('MyEvent', 'custom');
-
-    // Assert
-    expect(name).toBe('AutoSNSProducer:custom');
-  });
-
   it('should add events to batcher and publish messages', async () => {
     // Arrange
     createService({

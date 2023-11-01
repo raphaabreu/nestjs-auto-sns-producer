@@ -25,20 +25,20 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
 
   public static register<T>(options: AutoSNSProducerOptions<T>): Provider {
     return {
-      provide: AutoSNSProducer.getServiceName(options.eventName, options.name),
+      provide: AutoSNSProducer.getServiceName(options.name || options.eventName),
       useFactory: (awsSns: AWS.SNS, eventEmitter: EventEmitter2) => new AutoSNSProducer(awsSns, eventEmitter, options),
       inject: [AWS.SNS, EventEmitter2],
     };
   }
 
-  public static getServiceName(eventName: string, name?: string): string {
-    return `${AutoSNSProducer.name}:${name ? name : eventName}`;
+  public static getServiceName(name: string): string {
+    return `${AutoSNSProducer.name}:${name}`;
   }
 
   constructor(awsSns: AWS.SNS, eventEmitter: EventEmitter2, options: AutoSNSProducerOptions<T>) {
     this.options = { ...defaultOptions, ...options };
 
-    this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(options.eventName, options.name));
+    this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(options.name || options.eventName));
 
     this.batcher = new MessageBatcher(
       SNSProducer.BATCH_SIZE,
@@ -47,7 +47,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
 
     this.snsProducer = new SNSProducer(awsSns, {
       ...options,
-      name: options.name ? options.name : options.eventName,
+      name: options.name || options.eventName,
     });
 
     eventEmitter.on(this.options.eventName, (e) => this.add(e));

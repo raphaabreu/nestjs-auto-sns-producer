@@ -14,6 +14,7 @@ export type AutoSNSProducerOptions<T = unknown> = {
 
 const defaultOptions: Partial<AutoSNSProducerOptions> = {
   maxBatchIntervalMs: 10000,
+  maxBatchSize: 10,
 };
 
 export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
@@ -41,7 +42,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
     this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(options.name || options.eventName));
 
     this.batcher = new MessageBatcher(
-      SNSProducer.BATCH_SIZE,
+      this.options.maxBatchSize,
       this.promiseCollector.wrap((b) => this.publishIgnoringErrors(b)),
     );
 
@@ -68,7 +69,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.logger.log(
       'Starting message batcher with batchSize = ${batchSize} and maxBatchIntervalMs = ${maxBatchIntervalMs}ms...',
-      SNSProducer.BATCH_SIZE,
+      this.options.maxBatchSize,
       this.options.maxBatchIntervalMs,
     );
 

@@ -9,18 +9,18 @@ export type SNSProducerOptions<T = unknown> = {
   serializer?: (event: T) => string;
   prepareEntry?: (event: T, index: number) => AWS.SNS.PublishBatchRequestEntry;
   verboseBeginning?: boolean;
+  maxBatchSize?: number;
 };
 
 const defaultOptions: Partial<SNSProducerOptions> = {
   serializer: JSON.stringify,
   verboseBeginning: true,
+  maxBatchSize: 10,
 };
 
 const MAX_VERBOSE_LOG_COUNT = 10;
 
 export class SNSProducer<T> {
-  public static readonly BATCH_SIZE = 10;
-
   private readonly logger: StructuredLogger;
   private readonly options: SNSProducerOptions<T>;
 
@@ -45,7 +45,7 @@ export class SNSProducer<T> {
   }
 
   async publishBatch(messages: T | T[]) {
-    const promises = MessageBatcher.batch(messages, SNSProducer.BATCH_SIZE).map((b) => this.doPublishBatch(b, true));
+    const promises = MessageBatcher.batch(messages, this.options.maxBatchSize).map((b) => this.doPublishBatch(b, true));
 
     await Promise.all(promises);
   }

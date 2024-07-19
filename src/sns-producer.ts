@@ -21,16 +21,37 @@ const defaultOptions: Partial<SNSProducerOptions> = {
 const MAX_VERBOSE_LOG_COUNT = 10;
 
 export class SNSProducer<T> {
+  private readonly awsSns: AWS.SNS;
   private readonly logger: StructuredLogger;
   private readonly options: SNSProducerOptions<T>;
 
   private verboseLogCount = 0;
 
+  public static readonly SNS_FACTORY = Symbol('SNS_FACTORY');
+
+  public static registerDefaultSNSFactory(): Provider {
+    return {
+      provide: SNSProducer.SNS_FACTORY,
+      useFactory: () => (options: { region: string }) => new AWS.SNS(options),
+    };
+  }
+
   public static register<T>(options: SNSProducerOptions<T>): Provider {
     return {
       provide: SNSProducer.getServiceName(options.name),
-      useFactory: (awsSns: AWS.SNS) => new SNSProducer(awsSns, options),
-      inject: [AWS.SNS],
+      useFactory: (awsSns: AWS.SNS, awsSnsFactory: (options: { region: string }) => AWS.SNS) => {
+        const final = awsSnsFactory || awsSns;
+
+        if (!final) {
+          throw new Error('Either AWS.SNS or SNS_FACTORY must be provided');
+        }
+
+        return new SNSProducer(final, options);
+      },
+      inject: [
+        { token: AWS.SNS, optional: true },
+        { token: SNSProducer.SNS_FACTORY, optional: true },
+      ],
     };
   }
 
@@ -38,7 +59,11 @@ export class SNSProducer<T> {
     return `${SNSProducer.name}:${name}`;
   }
 
-  constructor(private readonly awsSns: AWS.SNS, options: SNSProducerOptions<T>) {
+  constructor(instanceOrFactory: AWS.SNS | ((options: { region: string }) => AWS.SNS), options: SNSProducerOptions<T>) {
+    const region = options.topicArn.split(':')[3];
+
+    this.awsSns = typeof instanceOrFactory === 'function' ? instanceOrFactory({ region }) : instanceOrFactory;
+
     this.options = { ...defaultOptions, ...options };
 
     this.logger = new StructuredLogger(SNSProducer.getServiceName(options.name));

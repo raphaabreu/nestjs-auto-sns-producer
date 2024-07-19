@@ -1,7 +1,5 @@
 import { SNSProducer, SNSProducerOptions } from './sns-producer';
 import * as AWS from 'aws-sdk';
-import { MessageBatcher } from '@raphaabreu/message-batcher';
-import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logger';
 
 describe('SNSProducer', () => {
   let awsSns: jest.Mocked<AWS.SNS>;

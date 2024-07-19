@@ -1,5 +1,5 @@
 import * as AWS from 'aws-sdk';
-import { OnModuleInit, OnModuleDestroy, Provider } from '@nestjs/common';
+import { OnModuleInit, OnModuleDestroy, Provider, Inject } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { MessageBatcher } from '@raphaabreu/message-batcher';
 import { PromiseCollector } from '@raphaabreu/promise-collector';
@@ -27,8 +27,20 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
   public static register<T>(options: AutoSNSProducerOptions<T>): Provider {
     return {
       provide: AutoSNSProducer.getServiceName(options.name || options.eventName),
-      useFactory: (awsSns: AWS.SNS, eventEmitter: EventEmitter2) => new AutoSNSProducer(awsSns, eventEmitter, options),
-      inject: [AWS.SNS, EventEmitter2],
+      useFactory: (
+        awsSns: AWS.SNS,
+        awsSnsFactory: (options: { region: string }) => AWS.SNS,
+        eventEmitter: EventEmitter2,
+      ) => {
+        const final = awsSnsFactory || awsSns;
+
+        if (!final) {
+          throw new Error('Either AWS.SNS or SNS_FACTORY must be provided');
+        }
+
+        return new AutoSNSProducer(final, eventEmitter, options);
+      },
+      inject: [{ token: AWS.SNS, optional: true }, { token: SNSProducer.SNS_FACTORY, optional: true }, EventEmitter2],
     };
   }
 
@@ -36,7 +48,11 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
     return `${AutoSNSProducer.name}:${name}`;
   }
 
-  constructor(awsSns: AWS.SNS, eventEmitter: EventEmitter2, options: AutoSNSProducerOptions<T>) {
+  constructor(
+    instanceOrFactory: AWS.SNS | ((options: { region: string }) => AWS.SNS),
+    eventEmitter: EventEmitter2,
+    options: AutoSNSProducerOptions<T>,
+  ) {
     this.options = { ...defaultOptions, ...options };
 
     this.logger = new StructuredLogger(AutoSNSProducer.getServiceName(options.name || options.eventName));
@@ -46,7 +62,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
       this.promiseCollector.wrap((b) => this.publishIgnoringErrors(b)),
     );
 
-    this.snsProducer = new SNSProducer(awsSns, {
+    this.snsProducer = new SNSProducer(instanceOrFactory, {
       ...options,
       name: options.name || options.eventName,
     });

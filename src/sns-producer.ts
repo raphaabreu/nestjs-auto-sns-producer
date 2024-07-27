@@ -60,7 +60,7 @@ export class SNSProducer<T> {
   }
 
   constructor(instanceOrFactory: AWS.SNS | ((options: { region: string }) => AWS.SNS), options: SNSProducerOptions<T>) {
-    const region = options.topicArn.split(':')[3];
+    const region = options?.topicArn?.split(':')[3] || process.env.AWS_REGION;
 
     this.awsSns = typeof instanceOrFactory === 'function' ? instanceOrFactory({ region }) : instanceOrFactory;
 

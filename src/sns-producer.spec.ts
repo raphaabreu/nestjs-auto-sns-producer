@@ -1,18 +1,28 @@
+import { 
+  SNSClient, 
+  SNSServiceException,
+  PublishBatchCommand,
+  PublishBatchCommandOutput,
+  SNSClientResolvedConfig
+} from '@aws-sdk/client-sns';
+import { MiddlewareStack } from "@aws-sdk/types";
 import { SNSProducer, SNSProducerOptions } from './sns-producer';
-import * as AWS from 'aws-sdk';
-
 describe('SNSProducer', () => {
-  let awsSns: jest.Mocked<AWS.SNS>;
+  let awsSns: jest.Mocked<SNSClient>;
   let options: SNSProducerOptions;
   let snsProducer: SNSProducer<string>;
 
   beforeEach(() => {
     awsSns = {
-      publishBatch: jest.fn().mockReturnValue({
-        promise: () => Promise.resolve({ Successful: [], Failed: [] }),
-      }),
-    } as unknown as jest.Mocked<AWS.SNS>;
-
+      config: {},
+      middlewareStack: {} as MiddlewareStack<any, any>,
+      destroy: jest.fn(),
+      send: jest.fn().mockResolvedValue({ 
+        Successful: [], 
+        Failed: [], 
+        $metadata: {} 
+      } as PublishBatchCommandOutput),
+    } as unknown as jest.Mocked<SNSClient>;
     options = {
       name: 'TestSNSProducer',
       topicArn: 'arn:aws:sns:us-east-1:123456789012:MyTopic',
@@ -20,7 +30,7 @@ describe('SNSProducer', () => {
     snsProducer = new SNSProducer(awsSns, options);
   });
 
-  describe('publishBatch', () => {
+  describe('send', () => {
     it('should publish messages in batch', async () => {
       // Arrange
       const messages = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -29,17 +39,19 @@ describe('SNSProducer', () => {
       await snsProducer.publishBatch(messages);
 
       // Assert
-      expect(awsSns.publishBatch).toHaveBeenCalledTimes(2);
+      expect(awsSns.send).toHaveBeenCalledTimes(2);
     });
 
     it('should throw an error when publishing fails', async () => {
       // Arrange
       const messages = ['message1', 'message2', 'message3'];
-      const exception = new Error('Publishing failed');
-      awsSns.publishBatch.mockReturnValue({
-        promise: () => Promise.reject(exception),
-      } as unknown as AWS.Request<AWS.SNS.PublishBatchResponse, AWS.AWSError>);
-
+      const exception = new SNSServiceException({
+        name: 'SNSServiceException',
+        $fault: 'client',
+        $metadata: {},
+        message: 'Publishing failed'
+      });
+      (awsSns.send as jest.Mock).mockRejectedValue(exception);
       // Act
       const result = snsProducer.publishBatch(messages);
 

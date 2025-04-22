@@ -1,19 +1,18 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import * as AWS from 'aws-sdk';
+
 import { AutoSNSProducer, AutoSNSProducerOptions } from './auto-sns-producer';
+import { SNSClient } from '@aws-sdk/client-sns';
 
 describe('AutoSNSProducerService', () => {
   let eventEmitter: EventEmitter2;
-  let awsSns: jest.Mocked<AWS.SNS>;
+  let awsSns: jest.Mocked<SNSClient>;
   let sut: AutoSNSProducer<any>;
 
   beforeEach(() => {
     eventEmitter = new EventEmitter2();
     awsSns = {
-      publishBatch: jest.fn().mockReturnValue({
-        promise: () => Promise.resolve({ Successful: [], Failed: [] }),
-      }),
-    } as unknown as jest.Mocked<AWS.SNS>;
+      send: jest.fn().mockResolvedValue({ Successful: [], Failed: [] }),
+    } as unknown as jest.Mocked<SNSClient>;
   });
 
   function createService(options: AutoSNSProducerOptions) {
@@ -43,7 +42,7 @@ describe('AutoSNSProducerService', () => {
     await sut.flush();
 
     // Assert
-    expect(awsSns.publishBatch).toHaveBeenCalled();
+    expect(awsSns.send).toHaveBeenCalled();
   });
 
   it('should use custom serializer if provided', async () => {
@@ -60,9 +59,11 @@ describe('AutoSNSProducerService', () => {
     await sut.flush();
 
     // Assert
-    expect(awsSns.publishBatch).toHaveBeenCalledWith(
+    expect(awsSns.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        PublishBatchRequestEntries: [expect.objectContaining({ Message: 'Custom: {"foo":"bar"}' })],
+        input: expect.objectContaining({
+          PublishBatchRequestEntries: [expect.objectContaining({ Message: 'Custom: {"foo":"bar"}' })],
+        }),
       }),
     );
   });
@@ -84,9 +85,11 @@ describe('AutoSNSProducerService', () => {
     await sut.flush();
 
     // Assert
-    expect(awsSns.publishBatch).toHaveBeenCalledWith(
+    expect(awsSns.send).toHaveBeenCalledWith(
       expect.objectContaining({
-        PublishBatchRequestEntries: [expect.objectContaining({ Id: 'custom-0' })],
+        input: expect.objectContaining({
+          PublishBatchRequestEntries: [expect.objectContaining({ Id: 'custom-0' })],
+        }),
       }),
     );
   });

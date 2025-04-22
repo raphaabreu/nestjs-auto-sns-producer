@@ -47,6 +47,7 @@
     "@raphaabreu/nestjs-opensearch-structured-logger": ">=0.2.7"
   },
   "dependencies": {
+    "@aws-sdk/client-sns": "^3.787.0",
     "@raphaabreu/message-batcher": ">=1.0.1",
     "@raphaabreu/promise-collector": ">=1.0.0"
   }

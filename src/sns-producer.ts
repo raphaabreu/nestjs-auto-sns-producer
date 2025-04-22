@@ -1,4 +1,9 @@
-import * as AWS from 'aws-sdk';
+import {
+  PublishBatchCommandInput,
+  PublishBatchRequestEntry,
+  SNSClient,
+  PublishBatchCommand,
+} from '@aws-sdk/client-sns';
 import { Provider } from '@nestjs/common';
 import { MessageBatcher } from '@raphaabreu/message-batcher';
 import { StructuredLogger } from '@raphaabreu/nestjs-opensearch-structured-logger';
@@ -7,7 +12,7 @@ export type SNSProducerOptions<T = unknown> = {
   name: string;
   topicArn: string;
   serializer?: (event: T) => string;
-  prepareEntry?: (event: T, index: number) => AWS.SNS.PublishBatchRequestEntry;
+  prepareEntry?: (event: T, index: number) => PublishBatchRequestEntry;
   verboseBeginning?: boolean;
   maxBatchSize?: number;
 };
@@ -21,7 +26,7 @@ const defaultOptions: Partial<SNSProducerOptions> = {
 const MAX_VERBOSE_LOG_COUNT = 10;
 
 export class SNSProducer<T> {
-  private readonly awsSns: AWS.SNS;
+  private readonly awsSns: SNSClient;
   private readonly logger: StructuredLogger;
   private readonly options: SNSProducerOptions<T>;
 
@@ -32,24 +37,24 @@ export class SNSProducer<T> {
   public static registerDefaultSNSFactory(): Provider {
     return {
       provide: SNSProducer.SNS_FACTORY,
-      useFactory: () => (options: { region: string }) => new AWS.SNS(options),
+      useFactory: () => (options: { region: string }) => new SNSClient(options),
     };
   }
 
   public static register<T>(options: SNSProducerOptions<T>): Provider {
     return {
       provide: SNSProducer.getServiceName(options.name),
-      useFactory: (awsSns: AWS.SNS, awsSnsFactory: (options: { region: string }) => AWS.SNS) => {
+      useFactory: (awsSns: SNSClient, awsSnsFactory: (options: { region: string }) => SNSClient) => {
         const final = awsSnsFactory || awsSns;
 
         if (!final) {
-          throw new Error('Either AWS.SNS or SNS_FACTORY must be provided');
+          throw new Error('Either SNS or SNS_FACTORY must be provided');
         }
 
         return new SNSProducer(final, options);
       },
       inject: [
-        { token: AWS.SNS, optional: true },
+        { token: SNSClient, optional: true },
         { token: SNSProducer.SNS_FACTORY, optional: true },
       ],
     };
@@ -59,7 +64,10 @@ export class SNSProducer<T> {
     return `${SNSProducer.name}:${name}`;
   }
 
-  constructor(instanceOrFactory: AWS.SNS | ((options: { region: string }) => AWS.SNS), options: SNSProducerOptions<T>) {
+  constructor(
+    instanceOrFactory: SNSClient | ((options: { region: string }) => SNSClient),
+    options: SNSProducerOptions<T>,
+  ) {
     const region = options?.topicArn?.split(':')[3] || process.env.AWS_REGION;
 
     this.awsSns = typeof instanceOrFactory === 'function' ? instanceOrFactory({ region }) : instanceOrFactory;
@@ -76,13 +84,14 @@ export class SNSProducer<T> {
   }
 
   private async doPublishBatch(messages: T[], throws: boolean) {
-    const params = {
+    const params: PublishBatchCommandInput = {
       TopicArn: this.options.topicArn,
       PublishBatchRequestEntries: this.prepareBatch(messages),
     };
 
     try {
-      const results = await this.awsSns.publishBatch(params).promise();
+      const command = new PublishBatchCommand(params);
+      const results = await this.awsSns.send(command);
 
       const verboseLog = this.verboseLoggingEnabled();
 
@@ -117,7 +126,7 @@ export class SNSProducer<T> {
     }
   }
 
-  private prepareBatch(events: T[]): AWS.SNS.PublishBatchRequestEntryList {
+  private prepareBatch(events: T[]): PublishBatchRequestEntry[] {
     if (this.options.prepareEntry) {
       return events.map(this.options.prepareEntry);
     }

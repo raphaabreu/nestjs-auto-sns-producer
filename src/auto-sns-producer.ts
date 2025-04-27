@@ -1,5 +1,5 @@
-import * as AWS from 'aws-sdk';
-import { OnModuleInit, OnModuleDestroy, Provider, Inject } from '@nestjs/common';
+import { SNSClient } from '@aws-sdk/client-sns';
+import { OnModuleInit, OnModuleDestroy, Provider } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { MessageBatcher } from '@raphaabreu/message-batcher';
 import { PromiseCollector } from '@raphaabreu/promise-collector';
@@ -28,19 +28,19 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
     return {
       provide: AutoSNSProducer.getServiceName(options.name || options.eventName),
       useFactory: (
-        awsSns: AWS.SNS,
-        awsSnsFactory: (options: { region: string }) => AWS.SNS,
+        awsSns: SNSClient,
+        awsSnsFactory: (options: { region: string }) => SNSClient,
         eventEmitter: EventEmitter2,
       ) => {
         const final = awsSnsFactory || awsSns;
 
         if (!final) {
-          throw new Error('Either AWS.SNS or SNS_FACTORY must be provided');
+          throw new Error('Either SNSClient or SNS_FACTORY must be provided');
         }
 
         return new AutoSNSProducer(final, eventEmitter, options);
       },
-      inject: [{ token: AWS.SNS, optional: true }, { token: SNSProducer.SNS_FACTORY, optional: true }, EventEmitter2],
+      inject: [{ token: SNSClient, optional: true }, { token: SNSProducer.SNS_FACTORY, optional: true }, EventEmitter2],
     };
   }
 
@@ -49,7 +49,7 @@ export class AutoSNSProducer<T> implements OnModuleInit, OnModuleDestroy {
   }
 
   constructor(
-    instanceOrFactory: AWS.SNS | ((options: { region: string }) => AWS.SNS),
+    instanceOrFactory: SNSClient | ((options: { region: string }) => SNSClient),
     eventEmitter: EventEmitter2,
     options: AutoSNSProducerOptions<T>,
   ) {
